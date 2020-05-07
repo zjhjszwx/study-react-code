@@ -7,16 +7,16 @@
  * @flow
  */
 
-import type {ReactNodeList} from 'shared/ReactTypes';
+import type { ReactNodeList } from "shared/ReactTypes";
 // TODO: This type is shared between the reconciler and ReactDOM, but will
 // eventually be lifted out to the renderer.
 import type {
   FiberRoot,
   Batch as FiberRootBatch,
-} from 'react-reconciler/src/ReactFiberRoot';
+} from "react-reconciler/src/ReactFiberRoot";
 
-import '../shared/checkReact';
-import './ReactDOMClientInjection';
+import "../shared/checkReact";
+import "./ReactDOMClientInjection";
 
 import {
   computeUniqueAsyncExpiration,
@@ -35,48 +35,48 @@ import {
   getPublicRootInstance,
   findHostInstance,
   findHostInstanceWithWarning,
-} from 'react-reconciler/inline.dom';
-import {createPortal as createPortalImpl} from 'shared/ReactPortal';
-import {canUseDOM} from 'shared/ExecutionEnvironment';
-import {setBatchingImplementation} from 'react-events/ReactGenericBatching';
+} from "react-reconciler/inline.dom";
+import { createPortal as createPortalImpl } from "shared/ReactPortal";
+import { canUseDOM } from "shared/ExecutionEnvironment";
+import { setBatchingImplementation } from "react-events/ReactGenericBatching";
 import {
   setRestoreImplementation,
   enqueueStateRestore,
   restoreStateIfNeeded,
-} from 'react-events/ReactControlledComponent';
+} from "react-events/ReactControlledComponent";
 import {
   injection as EventPluginHubInjection,
   runEventsInBatch,
-} from 'react-events/EventPluginHub';
-import {eventNameDispatchConfigs} from 'react-events/EventPluginRegistry';
+} from "react-events/EventPluginHub";
+import { eventNameDispatchConfigs } from "react-events/EventPluginRegistry";
 import {
   accumulateTwoPhaseDispatches,
   accumulateDirectDispatches,
-} from 'react-events/EventPropagators';
-import {has as hasInstance} from 'shared/ReactInstanceMap';
-import ReactVersion from 'shared/ReactVersion';
-import ReactSharedInternals from 'shared/ReactSharedInternals';
-import getComponentName from 'shared/getComponentName';
-import invariant from 'shared/invariant';
-import lowPriorityWarning from 'shared/lowPriorityWarning';
-import warningWithoutStack from 'shared/warningWithoutStack';
-import {enableStableConcurrentModeAPIs} from 'shared/ReactFeatureFlags';
+} from "react-events/EventPropagators";
+import { has as hasInstance } from "shared/ReactInstanceMap";
+import ReactVersion from "shared/ReactVersion";
+import ReactSharedInternals from "shared/ReactSharedInternals";
+import getComponentName from "shared/getComponentName";
+import invariant from "shared/invariant";
+import lowPriorityWarning from "shared/lowPriorityWarning";
+import warningWithoutStack from "shared/warningWithoutStack";
+import { enableStableConcurrentModeAPIs } from "shared/ReactFeatureFlags";
 
 import {
   getInstanceFromNode,
   getNodeFromInstance,
   getFiberCurrentPropsFromNode,
   getClosestInstanceFromNode,
-} from './ReactDOMComponentTree';
-import {restoreControlledState} from './ReactDOMComponent';
-import {dispatchEvent} from '../events/ReactDOMEventListener';
+} from "./ReactDOMComponentTree";
+import { restoreControlledState } from "./ReactDOMComponent";
+import { dispatchEvent } from "../events/ReactDOMEventListener";
 import {
   ELEMENT_NODE,
   COMMENT_NODE,
   DOCUMENT_NODE,
   DOCUMENT_FRAGMENT_NODE,
-} from '../shared/HTMLNodeType';
-import {ROOT_ATTRIBUTE_NAME} from '../shared/DOMProperty';
+} from "../shared/HTMLNodeType";
+import { ROOT_ATTRIBUTE_NAME } from "../shared/DOMProperty";
 
 const ReactCurrentOwner = ReactSharedInternals.ReactCurrentOwner;
 
@@ -86,35 +86,35 @@ let didWarnAboutUnstableCreatePortal = false;
 
 if (__DEV__) {
   if (
-    typeof Map !== 'function' ||
+    typeof Map !== "function" ||
     // $FlowIssue Flow incorrectly thinks Map has no prototype
     Map.prototype == null ||
-    typeof Map.prototype.forEach !== 'function' ||
-    typeof Set !== 'function' ||
+    typeof Map.prototype.forEach !== "function" ||
+    typeof Set !== "function" ||
     // $FlowIssue Flow incorrectly thinks Set has no prototype
     Set.prototype == null ||
-    typeof Set.prototype.clear !== 'function' ||
-    typeof Set.prototype.forEach !== 'function'
+    typeof Set.prototype.clear !== "function" ||
+    typeof Set.prototype.forEach !== "function"
   ) {
     warningWithoutStack(
       false,
-      'React depends on Map and Set built-in types. Make sure that you load a ' +
-        'polyfill in older browsers. https://fb.me/react-polyfills',
+      "React depends on Map and Set built-in types. Make sure that you load a " +
+        "polyfill in older browsers. https://fb.me/react-polyfills"
     );
   }
 
   topLevelUpdateWarnings = (container: DOMContainer) => {
     if (container._reactRootContainer && container.nodeType !== COMMENT_NODE) {
       const hostInstance = findHostInstanceWithNoPortals(
-        container._reactRootContainer._internalRoot.current,
+        container._reactRootContainer._internalRoot.current
       );
       if (hostInstance) {
         warningWithoutStack(
           hostInstance.parentNode === container,
-          'render(...): It looks like the React-rendered content of this ' +
-            'container was removed without using React. This is not ' +
-            'supported and will cause errors. Instead, call ' +
-            'ReactDOM.unmountComponentAtNode to empty a container.',
+          "render(...): It looks like the React-rendered content of this " +
+            "container was removed without using React. This is not " +
+            "supported and will cause errors. Instead, call " +
+            "ReactDOM.unmountComponentAtNode to empty a container."
         );
       }
     }
@@ -125,31 +125,31 @@ if (__DEV__) {
 
     warningWithoutStack(
       !hasNonRootReactChild || isRootRenderedBySomeReact,
-      'render(...): Replacing React-rendered children with a new root ' +
-        'component. If you intended to update the children of this node, ' +
-        'you should instead have the existing children update their state ' +
-        'and render the new components instead of calling ReactDOM.render.',
+      "render(...): Replacing React-rendered children with a new root " +
+        "component. If you intended to update the children of this node, " +
+        "you should instead have the existing children update their state " +
+        "and render the new components instead of calling ReactDOM.render."
     );
 
     warningWithoutStack(
       container.nodeType !== ELEMENT_NODE ||
         !((container: any): Element).tagName ||
-        ((container: any): Element).tagName.toUpperCase() !== 'BODY',
-      'render(): Rendering components directly into document.body is ' +
-        'discouraged, since its children are often manipulated by third-party ' +
-        'scripts and browser extensions. This may lead to subtle ' +
-        'reconciliation issues. Try rendering into a container element created ' +
-        'for your app.',
+        ((container: any): Element).tagName.toUpperCase() !== "BODY",
+      "render(): Rendering components directly into document.body is " +
+        "discouraged, since its children are often manipulated by third-party " +
+        "scripts and browser extensions. This may lead to subtle " +
+        "reconciliation issues. Try rendering into a container element created " +
+        "for your app."
     );
   };
 
-  warnOnInvalidCallback = function(callback: mixed, callerName: string) {
+  warnOnInvalidCallback = function (callback: mixed, callerName: string) {
     warningWithoutStack(
-      callback === null || typeof callback === 'function',
-      '%s(...): Expected the last optional `callback` argument to be a ' +
-        'function. Instead received: %s.',
+      callback === null || typeof callback === "function",
+      "%s(...): Expected the last optional `callback` argument to be a " +
+        "function. Instead received: %s.",
       callerName,
-      callback,
+      callback
     );
   };
 }
@@ -188,7 +188,7 @@ type Root = {
   legacy_renderSubtreeIntoContainer(
     parentComponent: ?React$Component<any, any>,
     children: ReactNodeList,
-    callback: ?() => mixed,
+    callback: ?() => mixed
   ): Work,
   createBatch(): Batch,
 
@@ -206,10 +206,10 @@ function ReactBatch(root: ReactRoot) {
   this._children = null;
   this._defer = true;
 }
-ReactBatch.prototype.render = function(children: ReactNodeList) {
+ReactBatch.prototype.render = function (children: ReactNodeList) {
   invariant(
     this._defer,
-    'batch.render: Cannot render a batch that already committed.',
+    "batch.render: Cannot render a batch that already committed."
   );
   this._hasChildren = true;
   this._children = children;
@@ -221,11 +221,11 @@ ReactBatch.prototype.render = function(children: ReactNodeList) {
     internalRoot,
     null,
     expirationTime,
-    work._onCommit,
+    work._onCommit
   );
   return work;
 };
-ReactBatch.prototype.then = function(onComplete: () => mixed) {
+ReactBatch.prototype.then = function (onComplete: () => mixed) {
   if (this._didComplete) {
     onComplete();
     return;
@@ -236,12 +236,12 @@ ReactBatch.prototype.then = function(onComplete: () => mixed) {
   }
   callbacks.push(onComplete);
 };
-ReactBatch.prototype.commit = function() {
+ReactBatch.prototype.commit = function () {
   const internalRoot = this._root._internalRoot;
   let firstBatch = internalRoot.firstBatch;
   invariant(
     this._defer && firstBatch !== null,
-    'batch.commit: Cannot commit a batch multiple times.',
+    "batch.commit: Cannot commit a batch multiple times."
   );
 
   if (!this._hasChildren) {
@@ -276,7 +276,7 @@ ReactBatch.prototype.commit = function() {
     }
     invariant(
       previous !== null,
-      'batch.commit: Cannot commit a batch multiple times.',
+      "batch.commit: Cannot commit a batch multiple times."
     );
     previous._next = batch._next;
 
@@ -299,7 +299,7 @@ ReactBatch.prototype.commit = function() {
     firstBatch.render(firstBatch._children);
   }
 };
-ReactBatch.prototype._onComplete = function() {
+ReactBatch.prototype._onComplete = function () {
   if (this._didComplete) {
     return;
   }
@@ -329,7 +329,7 @@ function ReactWork() {
   // list of Work objects.
   this._onCommit = this._onCommit.bind(this);
 }
-ReactWork.prototype.then = function(onCommit: () => mixed): void {
+ReactWork.prototype.then = function (onCommit: () => mixed): void {
   if (this._didCommit) {
     onCommit();
     return;
@@ -340,7 +340,7 @@ ReactWork.prototype.then = function(onCommit: () => mixed): void {
   }
   callbacks.push(onCommit);
 };
-ReactWork.prototype._onCommit = function(): void {
+ReactWork.prototype._onCommit = function (): void {
   if (this._didCommit) {
     return;
   }
@@ -353,10 +353,10 @@ ReactWork.prototype._onCommit = function(): void {
   for (let i = 0; i < callbacks.length; i++) {
     const callback = callbacks[i];
     invariant(
-      typeof callback === 'function',
-      'Invalid argument passed as callback. Expected a function. Instead ' +
-        'received: %s',
-      callback,
+      typeof callback === "function",
+      "Invalid argument passed as callback. Expected a function. Instead " +
+        "received: %s",
+      callback
     );
     callback();
   }
@@ -365,20 +365,20 @@ ReactWork.prototype._onCommit = function(): void {
 function ReactRoot(
   container: DOMContainer,
   isConcurrent: boolean,
-  hydrate: boolean,
+  hydrate: boolean
 ) {
   const root = createContainer(container, isConcurrent, hydrate);
   this._internalRoot = root;
 }
-ReactRoot.prototype.render = function(
+ReactRoot.prototype.render = function (
   children: ReactNodeList,
-  callback: ?() => mixed,
+  callback: ?() => mixed
 ): Work {
   const root = this._internalRoot;
   const work = new ReactWork();
   callback = callback === undefined ? null : callback;
   if (__DEV__) {
-    warnOnInvalidCallback(callback, 'render');
+    warnOnInvalidCallback(callback, "render");
   }
   if (callback !== null) {
     work.then(callback);
@@ -386,12 +386,12 @@ ReactRoot.prototype.render = function(
   updateContainer(children, root, null, work._onCommit);
   return work;
 };
-ReactRoot.prototype.unmount = function(callback: ?() => mixed): Work {
+ReactRoot.prototype.unmount = function (callback: ?() => mixed): Work {
   const root = this._internalRoot;
   const work = new ReactWork();
   callback = callback === undefined ? null : callback;
   if (__DEV__) {
-    warnOnInvalidCallback(callback, 'render');
+    warnOnInvalidCallback(callback, "render");
   }
   if (callback !== null) {
     work.then(callback);
@@ -399,16 +399,16 @@ ReactRoot.prototype.unmount = function(callback: ?() => mixed): Work {
   updateContainer(null, root, null, work._onCommit);
   return work;
 };
-ReactRoot.prototype.legacy_renderSubtreeIntoContainer = function(
+ReactRoot.prototype.legacy_renderSubtreeIntoContainer = function (
   parentComponent: ?React$Component<any, any>,
   children: ReactNodeList,
-  callback: ?() => mixed,
+  callback: ?() => mixed
 ): Work {
   const root = this._internalRoot;
   const work = new ReactWork();
   callback = callback === undefined ? null : callback;
   if (__DEV__) {
-    warnOnInvalidCallback(callback, 'render');
+    warnOnInvalidCallback(callback, "render");
   }
   if (callback !== null) {
     work.then(callback);
@@ -416,7 +416,7 @@ ReactRoot.prototype.legacy_renderSubtreeIntoContainer = function(
   updateContainer(children, root, parentComponent, work._onCommit);
   return work;
 };
-ReactRoot.prototype.createBatch = function(): Batch {
+ReactRoot.prototype.createBatch = function (): Batch {
   const batch = new ReactBatch(this);
   const expirationTime = batch._expirationTime;
 
@@ -459,10 +459,10 @@ function isValidContainer(node) {
       node.nodeType === DOCUMENT_NODE ||
       node.nodeType === DOCUMENT_FRAGMENT_NODE ||
       (node.nodeType === COMMENT_NODE &&
-        node.nodeValue === ' react-mount-point-unstable '))
+        node.nodeValue === " react-mount-point-unstable "))
   );
 }
-
+//获取节点
 function getReactRootElementInContainer(container: any) {
   if (!container) {
     return null;
@@ -474,7 +474,7 @@ function getReactRootElementInContainer(container: any) {
     return container.firstChild;
   }
 }
-
+//服务端渲染相关
 function shouldHydrateDueToLegacyHeuristic(container) {
   const rootElement = getReactRootElementInContainer(container);
   return !!(
@@ -487,14 +487,14 @@ function shouldHydrateDueToLegacyHeuristic(container) {
 setBatchingImplementation(
   batchedUpdates,
   interactiveUpdates,
-  flushInteractiveUpdates,
+  flushInteractiveUpdates
 );
 
 let warnedAboutHydrateAPI = false;
-
+//创建一个ReactRoot
 function legacyCreateRootFromDOMContainer(
   container: DOMContainer,
-  forceHydrate: boolean,
+  forceHydrate: boolean
 ): Root {
   const shouldHydrate =
     forceHydrate || shouldHydrateDueToLegacyHeuristic(container);
@@ -512,9 +512,9 @@ function legacyCreateRootFromDOMContainer(
           warned = true;
           warningWithoutStack(
             false,
-            'render(): Target node has markup rendered by React, but there ' +
-              'are unrelated nodes as well. This is most commonly caused by ' +
-              'white-space inserted around server-rendered markup.',
+            "render(): Target node has markup rendered by React, but there " +
+              "are unrelated nodes as well. This is most commonly caused by " +
+              "white-space inserted around server-rendered markup."
           );
         }
       }
@@ -526,9 +526,9 @@ function legacyCreateRootFromDOMContainer(
       warnedAboutHydrateAPI = true;
       lowPriorityWarning(
         false,
-        'render(): Calling ReactDOM.render() to hydrate server-rendered markup ' +
-          'will stop working in React v17. Replace the ReactDOM.render() call ' +
-          'with ReactDOM.hydrate() if you want React to attach to the server HTML.',
+        "render(): Calling ReactDOM.render() to hydrate server-rendered markup " +
+          "will stop working in React v17. Replace the ReactDOM.render() call " +
+          "with ReactDOM.hydrate() if you want React to attach to the server HTML."
       );
     }
   }
@@ -542,7 +542,7 @@ function legacyRenderSubtreeIntoContainer(
   children: ReactNodeList,
   container: DOMContainer,
   forceHydrate: boolean,
-  callback: ?Function,
+  callback: ?Function
 ) {
   if (__DEV__) {
     topLevelUpdateWarnings(container);
@@ -555,31 +555,32 @@ function legacyRenderSubtreeIntoContainer(
     // Initial mount
     root = container._reactRootContainer = legacyCreateRootFromDOMContainer(
       container,
-      forceHydrate,
+      forceHydrate
     );
-    if (typeof callback === 'function') {
+    if (typeof callback === "function") {
       const originalCallback = callback;
-      callback = function() {
+      callback = function () {
         const instance = getPublicRootInstance(root._internalRoot);
         originalCallback.call(instance);
       };
     }
     // Initial mount should not be batched.
+    // 批量更新
     unbatchedUpdates(() => {
       if (parentComponent != null) {
         root.legacy_renderSubtreeIntoContainer(
           parentComponent,
           children,
-          callback,
+          callback
         );
       } else {
         root.render(children, callback);
       }
     });
   } else {
-    if (typeof callback === 'function') {
+    if (typeof callback === "function") {
       const originalCallback = callback;
-      callback = function() {
+      callback = function () {
         const instance = getPublicRootInstance(root._internalRoot);
         originalCallback.call(instance);
       };
@@ -589,7 +590,7 @@ function legacyRenderSubtreeIntoContainer(
       root.legacy_renderSubtreeIntoContainer(
         parentComponent,
         children,
-        callback,
+        callback
       );
     } else {
       root.render(children, callback);
@@ -601,11 +602,11 @@ function legacyRenderSubtreeIntoContainer(
 function createPortal(
   children: ReactNodeList,
   container: DOMContainer,
-  key: ?string = null,
+  key: ?string = null
 ) {
   invariant(
     isValidContainer(container),
-    'Target container is not a DOM element.',
+    "Target container is not a DOM element."
   );
   // TODO: pass ReactDOM portal implementation as third argument
   return createPortalImpl(children, container, null, key);
@@ -615,7 +616,7 @@ const ReactDOM: Object = {
   createPortal,
 
   findDOMNode(
-    componentOrElement: Element | ?React$Component<any, any>,
+    componentOrElement: Element | ?React$Component<any, any>
   ): null | Element | Text {
     if (__DEV__) {
       let owner = (ReactCurrentOwner.current: any);
@@ -624,12 +625,12 @@ const ReactDOM: Object = {
           owner.stateNode._warnedAboutRefsInRender;
         warningWithoutStack(
           warnedAboutRefsInRender,
-          '%s is accessing findDOMNode inside its render(). ' +
-            'render() should be a pure function of props and state. It should ' +
-            'never access something that requires stale data from the previous ' +
-            'render, such as refs. Move this logic to componentDidMount and ' +
-            'componentDidUpdate instead.',
-          getComponentName(owner.type) || 'A component',
+          "%s is accessing findDOMNode inside its render(). " +
+            "render() should be a pure function of props and state. It should " +
+            "never access something that requires stale data from the previous " +
+            "render, such as refs. Move this logic to componentDidMount and " +
+            "componentDidUpdate instead.",
+          getComponentName(owner.type) || "A component"
         );
         owner.stateNode._warnedAboutRefsInRender = true;
       }
@@ -641,7 +642,7 @@ const ReactDOM: Object = {
       return (componentOrElement: any);
     }
     if (__DEV__) {
-      return findHostInstanceWithWarning(componentOrElement, 'findDOMNode');
+      return findHostInstanceWithWarning(componentOrElement, "findDOMNode");
     }
     return findHostInstance(componentOrElement);
   },
@@ -649,15 +650,15 @@ const ReactDOM: Object = {
   hydrate(element: React$Node, container: DOMContainer, callback: ?Function) {
     invariant(
       isValidContainer(container),
-      'Target container is not a DOM element.',
+      "Target container is not a DOM element."
     );
     if (__DEV__) {
       warningWithoutStack(
         !container._reactHasBeenPassedToCreateRootDEV,
-        'You are calling ReactDOM.hydrate() on a container that was previously ' +
-          'passed to ReactDOM.%s(). This is not supported. ' +
-          'Did you mean to call createRoot(container, {hydrate: true}).render(element)?',
-        enableStableConcurrentModeAPIs ? 'createRoot' : 'unstable_createRoot',
+        "You are calling ReactDOM.hydrate() on a container that was previously " +
+          "passed to ReactDOM.%s(). This is not supported. " +
+          "Did you mean to call createRoot(container, {hydrate: true}).render(element)?",
+        enableStableConcurrentModeAPIs ? "createRoot" : "unstable_createRoot"
       );
     }
     // TODO: throw or warn if we couldn't hydrate?
@@ -666,26 +667,26 @@ const ReactDOM: Object = {
       element,
       container,
       true,
-      callback,
+      callback
     );
   },
 
   render(
     element: React$Element<any>,
     container: DOMContainer,
-    callback: ?Function,
+    callback: ?Function
   ) {
     invariant(
       isValidContainer(container),
-      'Target container is not a DOM element.',
+      "Target container is not a DOM element."
     );
     if (__DEV__) {
       warningWithoutStack(
         !container._reactHasBeenPassedToCreateRootDEV,
-        'You are calling ReactDOM.render() on a container that was previously ' +
-          'passed to ReactDOM.%s(). This is not supported. ' +
-          'Did you mean to call root.render(element)?',
-        enableStableConcurrentModeAPIs ? 'createRoot' : 'unstable_createRoot',
+        "You are calling ReactDOM.render() on a container that was previously " +
+          "passed to ReactDOM.%s(). This is not supported. " +
+          "Did you mean to call root.render(element)?",
+        enableStableConcurrentModeAPIs ? "createRoot" : "unstable_createRoot"
       );
     }
     return legacyRenderSubtreeIntoContainer(
@@ -693,7 +694,7 @@ const ReactDOM: Object = {
       element,
       container,
       false,
-      callback,
+      callback
     );
   },
 
@@ -701,37 +702,37 @@ const ReactDOM: Object = {
     parentComponent: React$Component<any, any>,
     element: React$Element<any>,
     containerNode: DOMContainer,
-    callback: ?Function,
+    callback: ?Function
   ) {
     invariant(
       isValidContainer(containerNode),
-      'Target container is not a DOM element.',
+      "Target container is not a DOM element."
     );
     invariant(
       parentComponent != null && hasInstance(parentComponent),
-      'parentComponent must be a valid React Component',
+      "parentComponent must be a valid React Component"
     );
     return legacyRenderSubtreeIntoContainer(
       parentComponent,
       element,
       containerNode,
       false,
-      callback,
+      callback
     );
   },
 
   unmountComponentAtNode(container: DOMContainer) {
     invariant(
       isValidContainer(container),
-      'unmountComponentAtNode(...): Target container is not a DOM element.',
+      "unmountComponentAtNode(...): Target container is not a DOM element."
     );
 
     if (__DEV__) {
       warningWithoutStack(
         !container._reactHasBeenPassedToCreateRootDEV,
-        'You are calling ReactDOM.unmountComponentAtNode() on a container that was previously ' +
-          'passed to ReactDOM.%s(). This is not supported. Did you mean to call root.unmount()?',
-        enableStableConcurrentModeAPIs ? 'createRoot' : 'unstable_createRoot',
+        "You are calling ReactDOM.unmountComponentAtNode() on a container that was previously " +
+          "passed to ReactDOM.%s(). This is not supported. Did you mean to call root.unmount()?",
+        enableStableConcurrentModeAPIs ? "createRoot" : "unstable_createRoot"
       );
     }
 
@@ -742,7 +743,7 @@ const ReactDOM: Object = {
         warningWithoutStack(
           !renderedByDifferentReact,
           "unmountComponentAtNode(): The node you're attempting to unmount " +
-            'was rendered by another copy of React.',
+            "was rendered by another copy of React."
         );
       }
 
@@ -769,12 +770,12 @@ const ReactDOM: Object = {
         warningWithoutStack(
           !hasNonRootReactChild,
           "unmountComponentAtNode(): The node you're attempting to unmount " +
-            'was rendered by React and is not a top-level container. %s',
+            "was rendered by React and is not a top-level container. %s",
           isContainerReactRoot
-            ? 'You may have accidentally passed in a React root node instead ' +
-              'of its container.'
-            : 'Instead, have the parent component update its state and ' +
-              'rerender in order to remove this component.',
+            ? "You may have accidentally passed in a React root node instead " +
+                "of its container."
+            : "Instead, have the parent component update its state and " +
+                "rerender in order to remove this component."
         );
       }
 
@@ -789,10 +790,10 @@ const ReactDOM: Object = {
       didWarnAboutUnstableCreatePortal = true;
       lowPriorityWarning(
         false,
-        'The ReactDOM.unstable_createPortal() alias has been deprecated, ' +
-          'and will be removed in React 17+. Update your code to use ' +
-          'ReactDOM.createPortal() instead. It has the exact same API, ' +
-          'but without the "unstable_" prefix.',
+        "The ReactDOM.unstable_createPortal() alias has been deprecated, " +
+          "and will be removed in React 17+. Update your code to use " +
+          "ReactDOM.createPortal() instead. It has the exact same API, " +
+          'but without the "unstable_" prefix.'
       );
     }
     return createPortal(...args);
@@ -832,19 +833,19 @@ type RootOptions = {
 
 function createRoot(container: DOMContainer, options?: RootOptions): ReactRoot {
   const functionName = enableStableConcurrentModeAPIs
-    ? 'createRoot'
-    : 'unstable_createRoot';
+    ? "createRoot"
+    : "unstable_createRoot";
   invariant(
     isValidContainer(container),
-    '%s(...): Target container is not a DOM element.',
-    functionName,
+    "%s(...): Target container is not a DOM element.",
+    functionName
   );
   if (__DEV__) {
     warningWithoutStack(
       !container._reactRootContainer,
-      'You are calling ReactDOM.%s() on a container that was previously ' +
-        'passed to ReactDOM.render(). This is not supported.',
-      enableStableConcurrentModeAPIs ? 'createRoot' : 'unstable_createRoot',
+      "You are calling ReactDOM.%s() on a container that was previously " +
+        "passed to ReactDOM.render(). This is not supported.",
+      enableStableConcurrentModeAPIs ? "createRoot" : "unstable_createRoot"
     );
     container._reactHasBeenPassedToCreateRootDEV = true;
   }
@@ -861,29 +862,29 @@ const foundDevTools = injectIntoDevTools({
   findFiberByHostInstance: getClosestInstanceFromNode,
   bundleType: __DEV__ ? 1 : 0,
   version: ReactVersion,
-  rendererPackageName: 'react-dom',
+  rendererPackageName: "react-dom",
 });
 
 if (__DEV__) {
   if (!foundDevTools && canUseDOM && window.top === window.self) {
     // If we're in Chrome or Firefox, provide a download link if not installed.
     if (
-      (navigator.userAgent.indexOf('Chrome') > -1 &&
-        navigator.userAgent.indexOf('Edge') === -1) ||
-      navigator.userAgent.indexOf('Firefox') > -1
+      (navigator.userAgent.indexOf("Chrome") > -1 &&
+        navigator.userAgent.indexOf("Edge") === -1) ||
+      navigator.userAgent.indexOf("Firefox") > -1
     ) {
       const protocol = window.location.protocol;
       // Don't warn in exotic cases like chrome-extension://.
       if (/^(https?|file):$/.test(protocol)) {
         console.info(
-          '%cDownload the React DevTools ' +
-            'for a better development experience: ' +
-            'https://fb.me/react-devtools' +
-            (protocol === 'file:'
-              ? '\nYou might need to use a local HTTP server (instead of file://): ' +
-                'https://fb.me/react-devtools-faq'
-              : ''),
-          'font-weight:bold',
+          "%cDownload the React DevTools " +
+            "for a better development experience: " +
+            "https://fb.me/react-devtools" +
+            (protocol === "file:"
+              ? "\nYou might need to use a local HTTP server (instead of file://): " +
+                "https://fb.me/react-devtools-faq"
+              : ""),
+          "font-weight:bold"
         );
       }
     }

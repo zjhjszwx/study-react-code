@@ -84,26 +84,30 @@
 // regardless of priority. Intermediate state may vary according to system
 // resources, but the final state is always the same.
 
-import type {Fiber} from './ReactFiber';
-import type {ExpirationTime} from './ReactFiberExpirationTime';
+import type { Fiber } from "./ReactFiber";
+import type { ExpirationTime } from "./ReactFiberExpirationTime";
 
-import {NoWork} from './ReactFiberExpirationTime';
+import { NoWork } from "./ReactFiberExpirationTime";
 import {
   enterDisallowedContextReadInDEV,
   exitDisallowedContextReadInDEV,
-} from './ReactFiberNewContext';
-import {Callback, ShouldCapture, DidCapture} from 'shared/ReactSideEffectTags';
-import {ClassComponent} from 'shared/ReactWorkTags';
+} from "./ReactFiberNewContext";
+import {
+  Callback,
+  ShouldCapture,
+  DidCapture,
+} from "shared/ReactSideEffectTags";
+import { ClassComponent } from "shared/ReactWorkTags";
 
 import {
   debugRenderPhaseSideEffects,
   debugRenderPhaseSideEffectsForStrictMode,
-} from 'shared/ReactFeatureFlags';
+} from "shared/ReactFeatureFlags";
 
-import {StrictMode} from './ReactTypeOfMode';
+import { StrictMode } from "./ReactTypeOfMode";
 
-import invariant from 'shared/invariant';
-import warningWithoutStack from 'shared/warningWithoutStack';
+import invariant from "shared/invariant";
+import warningWithoutStack from "shared/warningWithoutStack";
 
 export type Update<State> = {
   expirationTime: ExpirationTime,
@@ -169,7 +173,7 @@ export function createUpdateQueue<State>(baseState: State): UpdateQueue<State> {
 }
 
 function cloneUpdateQueue<State>(
-  currentQueue: UpdateQueue<State>,
+  currentQueue: UpdateQueue<State>
 ): UpdateQueue<State> {
   const queue: UpdateQueue<State> = {
     baseState: currentQueue.baseState,
@@ -205,7 +209,7 @@ export function createUpdate(expirationTime: ExpirationTime): Update<*> {
 
 function appendUpdateToQueue<State>(
   queue: UpdateQueue<State>,
-  update: Update<State>,
+  update: Update<State>
 ) {
   // Append the update to the end of the list.
   if (queue.lastUpdate === null) {
@@ -218,6 +222,8 @@ function appendUpdateToQueue<State>(
 }
 
 export function enqueueUpdate<State>(fiber: Fiber, update: Update<State>) {
+  // console.log("enqueueUpdate===");
+  // console.log("fible", fiber, "update", update);
   // Update queues are created lazily.
   const alternate = fiber.alternate;
   let queue1;
@@ -238,7 +244,7 @@ export function enqueueUpdate<State>(fiber: Fiber, update: Update<State>) {
         // Neither fiber has an update queue. Create new ones.
         queue1 = fiber.updateQueue = createUpdateQueue(fiber.memoizedState);
         queue2 = alternate.updateQueue = createUpdateQueue(
-          alternate.memoizedState,
+          alternate.memoizedState
         );
       } else {
         // Only one fiber has an update queue. Clone to create a new one.
@@ -282,10 +288,10 @@ export function enqueueUpdate<State>(fiber: Fiber, update: Update<State>) {
     ) {
       warningWithoutStack(
         false,
-        'An update (setState, replaceState, or forceUpdate) was scheduled ' +
-          'from inside an update function. Update functions should be pure, ' +
-          'with zero side-effects. Consider using componentDidUpdate or a ' +
-          'callback.',
+        "An update (setState, replaceState, or forceUpdate) was scheduled " +
+          "from inside an update function. Update functions should be pure, " +
+          "with zero side-effects. Consider using componentDidUpdate or a " +
+          "callback."
       );
       didWarnUpdateInsideUpdate = true;
     }
@@ -294,14 +300,14 @@ export function enqueueUpdate<State>(fiber: Fiber, update: Update<State>) {
 
 export function enqueueCapturedUpdate<State>(
   workInProgress: Fiber,
-  update: Update<State>,
+  update: Update<State>
 ) {
   // Captured updates go into a separate list, and only on the work-in-
   // progress queue.
   let workInProgressQueue = workInProgress.updateQueue;
   if (workInProgressQueue === null) {
     workInProgressQueue = workInProgress.updateQueue = createUpdateQueue(
-      workInProgress.memoizedState,
+      workInProgress.memoizedState
     );
   } else {
     // TODO: I put this here rather than createWorkInProgress so that we don't
@@ -309,7 +315,7 @@ export function enqueueCapturedUpdate<State>(
     // structure this.
     workInProgressQueue = ensureWorkInProgressQueueIsAClone(
       workInProgress,
-      workInProgressQueue,
+      workInProgressQueue
     );
   }
 
@@ -325,7 +331,7 @@ export function enqueueCapturedUpdate<State>(
 
 function ensureWorkInProgressQueueIsAClone<State>(
   workInProgress: Fiber,
-  queue: UpdateQueue<State>,
+  queue: UpdateQueue<State>
 ): UpdateQueue<State> {
   const current = workInProgress.alternate;
   if (current !== null) {
@@ -344,12 +350,12 @@ function getStateFromUpdate<State>(
   update: Update<State>,
   prevState: State,
   nextProps: any,
-  instance: any,
+  instance: any
 ): any {
   switch (update.tag) {
     case ReplaceState: {
       const payload = update.payload;
-      if (typeof payload === 'function') {
+      if (typeof payload === "function") {
         // Updater function
         if (__DEV__) {
           enterDisallowedContextReadInDEV();
@@ -378,7 +384,7 @@ function getStateFromUpdate<State>(
     case UpdateState: {
       const payload = update.payload;
       let partialState;
-      if (typeof payload === 'function') {
+      if (typeof payload === "function") {
         // Updater function
         if (__DEV__) {
           enterDisallowedContextReadInDEV();
@@ -418,7 +424,7 @@ export function processUpdateQueue<State>(
   queue: UpdateQueue<State>,
   props: any,
   instance: any,
-  renderExpirationTime: ExpirationTime,
+  renderExpirationTime: ExpirationTime
 ): void {
   hasForceUpdate = false;
 
@@ -462,7 +468,7 @@ export function processUpdateQueue<State>(
         update,
         resultState,
         props,
-        instance,
+        instance
       );
       const callback = update.callback;
       if (callback !== null) {
@@ -512,7 +518,7 @@ export function processUpdateQueue<State>(
         update,
         resultState,
         props,
-        instance,
+        instance
       );
       const callback = update.callback;
       if (callback !== null) {
@@ -565,10 +571,10 @@ export function processUpdateQueue<State>(
 
 function callCallback(callback, context) {
   invariant(
-    typeof callback === 'function',
-    'Invalid argument passed as callback. Expected a function. Instead ' +
-      'received: %s',
-    callback,
+    typeof callback === "function",
+    "Invalid argument passed as callback. Expected a function. Instead " +
+      "received: %s",
+    callback
   );
   callback.call(context);
 }
@@ -585,7 +591,7 @@ export function commitUpdateQueue<State>(
   finishedWork: Fiber,
   finishedQueue: UpdateQueue<State>,
   instance: any,
-  renderExpirationTime: ExpirationTime,
+  renderExpirationTime: ExpirationTime
 ): void {
   // If the finished render included captured updates, and there are still
   // lower priority updates left over, we need to keep the captured updates
@@ -611,7 +617,7 @@ export function commitUpdateQueue<State>(
 
 function commitUpdateEffects<State>(
   effect: Update<State> | null,
-  instance: any,
+  instance: any
 ): void {
   while (effect !== null) {
     const callback = effect.callback;
